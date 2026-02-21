@@ -7,7 +7,7 @@ ENV PYTHONUNBUFFERED=1
 
 RUN pip install --no-cache-dir poetry
 
-COPY pyproject.toml README.md ./ 
+COPY pyproject.toml README.md ./
 COPY src ./src
 
 RUN poetry config virtualenvs.create false \
@@ -16,4 +16,3 @@ RUN poetry config virtualenvs.create false \
 EXPOSE 8000
 
 CMD ["uvicorn", "delivery_service.main:app", "--host", "0.0.0.0", "--port", "8000"]
-
