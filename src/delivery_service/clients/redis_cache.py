@@ -10,11 +10,7 @@ from delivery_service.core.config import settings
 
 class RedisCache:
     def __init__(self) -> None:
-        self._client = redis.Redis(
-            host=settings.redis_host,
-            port=settings.redis_port,
-            decode_responses=True,
-        )
+        self._client = redis.Redis.from_url(settings.redis_dsn, decode_responses=True)
 
     def set_json(self, key: str, value: object, ttl: timedelta) -> None:
         self._client.setex(key, int(ttl.total_seconds()), json.dumps(value))
