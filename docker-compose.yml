@@ -1,20 +1,29 @@
-version: "3.9"
-
 services:
-  api:
+  app:
     build: .
-    container_name: delivery_service_api
+    container_name: delivery_service_app
     env_file:
       - .env.example
+    environment:
+      DB_URL: ${DB_URL:-postgresql+asyncpg://delivery_user:delivery_password@postgres:5432/delivery_service}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     ports:
       - "8000:8000"
     volumes:
       - ./src:/app/src
     command: >
       uvicorn delivery_service.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/docs', timeout=2)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
   postgres:
     image: postgres:16
@@ -25,20 +34,60 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-delivery_password}
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-delivery_user} -d ${POSTGRES_DB:-delivery_service}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   redis:
     image: redis:7
     container_name: delivery_service_redis
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
   celery-worker:
     build: .
-    container_name: delivery_service_celery
+    container_name: delivery_service_worker
     env_file:
       - .env.example
+    environment:
+      DB_URL: ${DB_URL:-postgresql+asyncpg://delivery_user:delivery_password@postgres:5432/delivery_service}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
     depends_on:
-      - api
-      - redis
+      app:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     command: celery -A delivery_service.tasks.celery_app.celery_app worker -l info
 
+  celery-beat:
+    build: .
+    container_name: delivery_service_beat
+    env_file:
+      - .env.example
+    environment:
+      DB_URL: ${DB_URL:-postgresql+asyncpg://delivery_user:delivery_password@postgres:5432/delivery_service}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+    depends_on:
+      app:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    command: celery -A delivery_service.tasks.celery_app.celery_app beat -l info
+
+volumes:
+  postgres_data:

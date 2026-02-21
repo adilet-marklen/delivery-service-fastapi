@@ -13,6 +13,8 @@ router = APIRouter()
 
 
 def _format_delivery_cost(cost: float | None) -> float | str:
+    # Компромисс по ТЗ: если стоимость ещё не посчитана, API должно вернуть "Не рассчитано".
+    # Поэтому поле delivery_cost_rub сейчас допускает float | str.
     if cost is None:
         return "Не рассчитано"
     return round(float(cost), 2)
@@ -57,7 +59,12 @@ async def list_parcels(
 ) -> ResponseEnvelope:
     service = ParcelService(db)
     filters = ParcelFilters(parcel_type_id=parcel_type_id, has_delivery_cost=has_delivery_cost)
-    items, total = await service.list_for_session(session_id=session_id, page=page, size=size, filters=filters)
+    items, total = await service.list_for_session(
+        session_id=session_id,
+        page=page,
+        size=size,
+        filters=filters,
+    )
     pages = ceil(total / size) if total else 0
 
     return ok(

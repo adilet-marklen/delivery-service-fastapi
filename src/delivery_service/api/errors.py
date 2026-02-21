@@ -7,4 +7,3 @@ def not_found(detail: str = "Not found") -> HTTPException:
 
 def bad_request(detail: str = "Bad request") -> HTTPException:
     return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
-

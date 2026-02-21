@@ -8,4 +8,3 @@ class ParcelNotFoundError(DeliveryServiceError):
 
 class ParcelTypeNotFoundError(DeliveryServiceError):
     """Тип посылки не найден."""
-

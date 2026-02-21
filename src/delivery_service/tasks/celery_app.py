@@ -7,4 +7,3 @@ celery_app = Celery(
     broker=settings.celery_broker_url,
     include=["delivery_service.tasks.delivery_cost_tasks"],
 )
-

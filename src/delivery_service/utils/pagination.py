@@ -1,5 +1,6 @@
+from collections.abc import Sequence
 from math import ceil
-from typing import Generic, Iterable, Sequence, TypeVar
+from typing import Generic, TypeVar
 
 from pydantic import BaseModel
 
@@ -20,4 +21,3 @@ def paginate(items: Sequence[T], *, page: int, size: int) -> Page[T]:
     total = len(items)
     pages = ceil(total / size) if size else 1
     return Page(items=list(items[start:end]), total=total, page=page, size=size, pages=pages)
-
