@@ -1,4 +1,5 @@
 from math import ceil
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,11 +24,11 @@ def _format_delivery_cost(cost: float | None) -> float | str:
 def _to_schema(parcel) -> ParcelOut:
     return ParcelOut(
         id=parcel.id,
-        name=parcel.name,
+        title=parcel.title,
         weight_kg=float(parcel.weight_kg),
-        content_value_usd=float(parcel.content_value_usd),
+        declared_cost_usd=float(parcel.declared_cost_usd),
         delivery_cost_rub=_format_delivery_cost(parcel.delivery_cost_rub),
-        content_type=parcel.content_type,
+        type=parcel.type,
     )
 
 
@@ -35,15 +36,15 @@ def _to_schema(parcel) -> ParcelOut:
 async def create_parcel(
     payload: ParcelCreate,
     db: AsyncSession = Depends(get_db),
-    session_id: str = Depends(get_session_id),
+    session_id: UUID = Depends(get_session_id),
 ) -> ResponseEnvelope:
     service = ParcelService(db)
     parcel = await service.create(
-        session_id=session_id,
-        name=payload.name,
+        user_id=session_id,
+        title=payload.title,
         weight_kg=payload.weight_kg,
-        content_type_id=payload.content_type_id,
-        content_value_usd=payload.content_value_usd,
+        type_id=payload.type_id,
+        declared_cost_usd=payload.declared_cost_usd,
     )
     return ok(ParcelCreateResult(id=parcel.id))
 
@@ -55,7 +56,7 @@ async def list_parcels(
     parcel_type_id: int | None = Query(default=None),
     has_delivery_cost: bool | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
-    session_id: str = Depends(get_session_id),
+    session_id: UUID = Depends(get_session_id),
 ) -> ResponseEnvelope:
     service = ParcelService(db)
     filters = ParcelFilters(parcel_type_id=parcel_type_id, has_delivery_cost=has_delivery_cost)
@@ -80,9 +81,9 @@ async def list_parcels(
 
 @router.get("/{parcel_id}", response_model=ResponseEnvelope)
 async def get_parcel(
-    parcel_id: int,
+    parcel_id: UUID,
     db: AsyncSession = Depends(get_db),
-    session_id: str = Depends(get_session_id),
+    session_id: UUID = Depends(get_session_id),
 ) -> ResponseEnvelope:
     service = ParcelService(db)
     parcel = await service.get_by_id_for_session(parcel_id=parcel_id, session_id=session_id)

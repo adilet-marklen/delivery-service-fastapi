@@ -4,6 +4,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from delivery_service.core.config import settings
+from delivery_service.db import models as _models  # noqa: F401
 from delivery_service.db.base import Base  # noqa: F401
 
 config = context.config

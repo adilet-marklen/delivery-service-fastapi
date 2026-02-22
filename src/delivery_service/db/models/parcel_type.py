@@ -18,4 +18,4 @@ class ParcelType(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
-    parcels: Mapped[list[Parcel]] = relationship("Parcel", back_populates="content_type")
+    parcels: Mapped[list[Parcel]] = relationship("Parcel", back_populates="type")

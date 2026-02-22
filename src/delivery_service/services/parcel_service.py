@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -15,39 +17,39 @@ class ParcelService:
     async def create(
         self,
         *,
-        session_id: str,
-        name: str,
+        user_id: UUID,
+        title: str,
         weight_kg: float,
-        content_type_id: int,
-        content_value_usd: float,
+        type_id: int,
+        declared_cost_usd: float,
     ) -> Parcel:
         parcel = Parcel(
-            session_id=session_id,
-            name=name,
+            user_id=user_id,
+            title=title,
             weight_kg=weight_kg,
-            content_type_id=content_type_id,
-            content_value_usd=content_value_usd,
+            type_id=type_id,
+            declared_cost_usd=declared_cost_usd,
         )
         self.session.add(parcel)
         await self.session.commit()
         await self.session.refresh(parcel)
         return parcel
 
-    async def get_by_id_for_session(self, *, parcel_id: int, session_id: str) -> Parcel | None:
+    async def get_by_id_for_session(self, *, parcel_id: UUID, session_id: UUID) -> Parcel | None:
         query = (
             select(Parcel)
-            .options(selectinload(Parcel.content_type))
-            .where(Parcel.id == parcel_id, Parcel.session_id == session_id)
+            .options(selectinload(Parcel.type))
+            .where(Parcel.id == parcel_id, Parcel.user_id == session_id)
         )
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
     async def list_for_session(
-        self, *, session_id: str, page: int, size: int, filters: ParcelFilters
+        self, *, session_id: UUID, page: int, size: int, filters: ParcelFilters
     ) -> tuple[list[Parcel], int]:
-        conditions = [Parcel.session_id == session_id]
+        conditions = [Parcel.user_id == session_id]
         if filters.parcel_type_id is not None:
-            conditions.append(Parcel.content_type_id == filters.parcel_type_id)
+            conditions.append(Parcel.type_id == filters.parcel_type_id)
         if filters.has_delivery_cost is True:
             conditions.append(Parcel.delivery_cost_rub.is_not(None))
         if filters.has_delivery_cost is False:
@@ -58,9 +60,9 @@ class ParcelService:
 
         query = (
             select(Parcel)
-            .options(selectinload(Parcel.content_type))
+            .options(selectinload(Parcel.type))
             .where(*conditions)
-            .order_by(Parcel.id.desc())
+            .order_by(Parcel.created_at.desc())
             .offset((page - 1) * size)
             .limit(size)
         )

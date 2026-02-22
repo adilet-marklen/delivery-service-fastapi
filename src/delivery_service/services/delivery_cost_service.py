@@ -17,6 +17,6 @@ class DeliveryCostService:
     def calculate_for_parcel(self, parcel: Parcel, usd_rub: float) -> float:
         return self.calculate_cost_rub(
             weight_kg=float(parcel.weight_kg),
-            content_value_usd=float(parcel.content_value_usd),
+            content_value_usd=float(parcel.declared_cost_usd),
             usd_rub=usd_rub,
         )
