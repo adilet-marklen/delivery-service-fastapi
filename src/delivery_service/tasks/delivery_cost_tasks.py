@@ -1,13 +1,8 @@
-import asyncio
-
-from delivery_service.services.currency import get_usd_rub_rate
+from delivery_service.tasks.calculate import calculate_delivery_costs
 from delivery_service.tasks.celery_app import celery_app
 
 
-@celery_app.task
-def recalculate_delivery_costs() -> str:
-    """Debug-friendly task entrypoint.
-
-    Пока возвращает текущий USD/RUB курс, чтобы можно было проверить запуск задачи вручную.
-    """
-    return str(asyncio.run(get_usd_rub_rate()))
+@celery_app.task(name="recalculate_delivery_costs_now")
+def recalculate_delivery_costs(batch_size: int = 500) -> int:
+    """Ручной запуск пересчета вне beat-расписания."""
+    return calculate_delivery_costs(batch_size=batch_size)

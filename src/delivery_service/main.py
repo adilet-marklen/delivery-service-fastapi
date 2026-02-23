@@ -1,4 +1,5 @@
 import logging
+from time import perf_counter
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, Request
@@ -10,7 +11,7 @@ from delivery_service.api.errors import AppError
 from delivery_service.api.responses import SuccessResponse, error, ok
 from delivery_service.api.v1.router import api_router
 from delivery_service.core.config import settings
-from delivery_service.core.logging import setup_logging
+from delivery_service.core.logging import clear_request_id, set_request_id, setup_logging
 from delivery_service.db.session import get_session
 from delivery_service.middlewares.session import register_session_middleware
 
@@ -26,9 +27,22 @@ def create_app() -> FastAPI:
     async def request_id_middleware(request: Request, call_next):
         request_id = request.headers.get("X-Request-Id") or uuid4().hex
         request.state.request_id = request_id
-        response = await call_next(request)
-        response.headers["X-Request-Id"] = request_id
-        return response
+        set_request_id(request_id)
+        started_at = perf_counter()
+        try:
+            response = await call_next(request)
+            response.headers["X-Request-Id"] = request_id
+            latency_ms = (perf_counter() - started_at) * 1000
+            logger.info(
+                "%s %s -> %s %.2fms",
+                request.method,
+                request.url.path,
+                response.status_code,
+                latency_ms,
+            )
+            return response
+        finally:
+            clear_request_id()
 
     @app.exception_handler(AppError)
     async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:

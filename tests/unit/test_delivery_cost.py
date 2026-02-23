@@ -1,7 +1,7 @@
 from delivery_service.services.delivery_cost_service import DeliveryCostService
 
 
-def test_calculate_cost_rub() -> None:
+def test_calculate_cost_rub_formula() -> None:
     service = DeliveryCostService()
     result = service.calculate_cost_rub(weight_kg=10, content_value_usd=200, usd_rub=90)
     assert result == 630.0

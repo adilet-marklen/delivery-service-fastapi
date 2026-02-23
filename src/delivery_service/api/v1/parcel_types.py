@@ -13,5 +13,5 @@ router = APIRouter()
 async def list_parcel_types(db: AsyncSession = Depends(get_db)) -> SuccessResponse:
     service = ParcelTypeService(db)
     parcel_types = await service.list_types()
-    result = [ParcelTypeOut.model_validate(item) for item in parcel_types]
+    result = [ParcelTypeOut(id=item.id, name=item.name) for item in parcel_types]
     return ok(result, meta={"total": len(result)})

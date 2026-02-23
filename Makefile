@@ -1,5 +1,6 @@
 .PHONY: up down logs run test tests lint format migrate makemigrations shell celery-worker celery-beat \
-        dtest dlint dformat dmigrate dmakemigrations dshell dcelery-worker dcelery-beat compose-up compose-down
+        task-once dtest dlint dformat dmigrate dmakemigrations dshell dcelery-worker dcelery-beat \
+        dtask-once compose-up compose-down
 
 MESSAGE ?= "auto migration"
 
@@ -41,6 +42,10 @@ celery-worker:
 celery-beat:
 	poetry run celery -A delivery_service.tasks.celery_app.celery_app beat -l info
 
+task-once:
+	@echo "Run calculate_delivery_costs once..."
+	poetry run celery -A delivery_service.tasks.celery_app.celery_app call calculate_delivery_costs
+
 dtest:
 	docker compose exec app poetry run pytest
 
@@ -64,6 +69,10 @@ dcelery-worker:
 
 dcelery-beat:
 	docker compose exec celery-beat celery -A delivery_service.tasks.celery_app.celery_app beat -l info
+
+dtask-once:
+	@echo "Run calculate_delivery_costs once in docker..."
+	docker compose exec celery-worker celery -A delivery_service.tasks.celery_app.celery_app call calculate_delivery_costs
 
 compose-up: up
 
