@@ -1,4 +1,6 @@
 import logging
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from time import perf_counter
 from uuid import uuid4
 
@@ -10,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from delivery_service.api.errors import AppError
 from delivery_service.api.responses import SuccessResponse, error, ok
 from delivery_service.api.v1.router import api_router
+from delivery_service.cache.rates import close_redis_pool
 from delivery_service.core.config import settings
 from delivery_service.core.logging import clear_request_id, set_request_id, setup_logging
 from delivery_service.db.session import get_session
@@ -20,7 +23,15 @@ def create_app() -> FastAPI:
     setup_logging(settings.log_level)
     logger = logging.getLogger(__name__)
     logger.info("Загружены настройки приложения: %s", settings.safe_log_fields)
-    app = FastAPI(title=settings.app_name)
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncGenerator[None, None]:
+        try:
+            yield
+        finally:
+            await close_redis_pool()
+
+    app = FastAPI(title=settings.app_name, lifespan=lifespan)
     register_session_middleware(app)
 
     @app.middleware("http")
@@ -75,12 +86,14 @@ def create_app() -> FastAPI:
             headers={"X-Request-Id": getattr(request.state, "request_id", "")},
         )
 
-    @app.get("/health", response_model=SuccessResponse, tags=["health"])
-    async def health() -> SuccessResponse:
+    @app.get("/health", response_model=SuccessResponse[dict[str, str]], tags=["health"])
+    async def health() -> SuccessResponse[dict[str, str]]:
         return ok({"status": "ok"})
 
-    @app.get("/db-ping", response_model=SuccessResponse, tags=["health"])
-    async def db_ping(session: AsyncSession = Depends(get_session)) -> SuccessResponse:
+    @app.get("/db-ping", response_model=SuccessResponse[dict[str, str | int]], tags=["health"])
+    async def db_ping(
+        session: AsyncSession = Depends(get_session),
+    ) -> SuccessResponse[dict[str, str | int]]:
         result = await session.execute(text("SELECT 1"))
         return ok({"db": "ok", "result": result.scalar_one()})
 

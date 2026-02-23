@@ -20,15 +20,16 @@ services:
       - ./src:/app/src
     command: >
       uvicorn delivery_service.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/docs', timeout=2)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 15s
 
   postgres:
-    image: postgres:16
+    image: postgres:17
     container_name: delivery_service_postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-delivery_service}
@@ -38,6 +39,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-delivery_user} -d ${POSTGRES_DB:-delivery_service}"]
       interval: 10s
@@ -50,6 +52,7 @@ services:
     container_name: delivery_service_redis
     ports:
       - "6379:6379"
+    restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -75,6 +78,7 @@ services:
       migrate:
         condition: service_completed_successfully
     command: celery -A delivery_service.tasks.celery_app.celery_app worker -l info --pool=solo
+    restart: unless-stopped
 
   celery-beat:
     build: .
@@ -94,6 +98,7 @@ services:
       migrate:
         condition: service_completed_successfully
     command: celery -A delivery_service.tasks.celery_app.celery_app beat -l info
+    restart: unless-stopped
 
   migrate:
     build: .

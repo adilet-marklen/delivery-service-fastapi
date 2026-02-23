@@ -1,4 +1,4 @@
-# 📦 Delivery Service (FastAPI)
+# 📦 Сервис доставки (FastAPI)
 
 Микросервис для регистрации посылок и расчета стоимости международной доставки.
 
@@ -32,7 +32,7 @@
 - Ruff + pre-commit
 - Docker Compose
 
-## 🚀 Quickstart (Docker)
+## 🚀 Быстрый старт (Docker)
 
 1. env-шаблон:
 
@@ -105,7 +105,7 @@ curl -s -b cookies.txt http://127.0.0.1:8000/api/v1/parcels/<PARCEL_ID>
 
 Если открыть посылку из другой cookie-сессии, будет `404`.
 
-## ⚙️ Background jobs
+## ⚙️ Фоновые задачи
 
 Периодический пересчет запускается Celery Beat каждые 5 минут.
 
@@ -125,7 +125,7 @@ make dtask-once
 
 Полезно для отладки: не надо ждать 5 минут, чтобы проверить расчет.
 
-## 🛠 Development
+## 🛠 Разработка
 
 Локальный запуск без Docker:
 
@@ -136,7 +136,7 @@ poetry run alembic upgrade head
 poetry run uvicorn delivery_service.main:app --reload
 ```
 
-## 🧪 Testing
+## 🧪 Тесты
 
 Быстрый запуск:
 
@@ -151,7 +151,7 @@ export TEST_DB_DSN='postgresql+asyncpg://delivery_user:delivery_password@localho
 poetry run pytest -q
 ```
 
-## 🧹 Linting
+## 🧹 Линтинг
 
 ```bash
 poetry run ruff check .

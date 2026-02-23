@@ -15,6 +15,8 @@ logger = logging.getLogger(__name__)
 USD_RUB_CACHE_KEY = "usd_rub_rate"
 USD_RUB_TTL_SECONDS = 600
 
+_redis_pool: redis.ConnectionPool | None = None
+
 
 def _parse_decimal(raw: str | None) -> Decimal | None:
     if raw is None:
@@ -25,8 +27,22 @@ def _parse_decimal(raw: str | None) -> Decimal | None:
         return None
 
 
+def get_redis_client() -> redis.Redis:
+    global _redis_pool
+    if _redis_pool is None:
+        _redis_pool = redis.ConnectionPool.from_url(settings.redis_dsn, decode_responses=True)
+    return redis.Redis(connection_pool=_redis_pool)
+
+
+async def close_redis_pool() -> None:
+    global _redis_pool
+    if _redis_pool is not None:
+        await _redis_pool.disconnect()
+        _redis_pool = None
+
+
 async def get_usd_rub_rate() -> Decimal:
-    redis_client = redis.Redis.from_url(settings.redis_dsn, decode_responses=True)
+    redis_client = get_redis_client()
     cbr_client = CBRClient()
 
     try:
@@ -64,5 +80,3 @@ async def get_usd_rub_rate() -> Decimal:
             message="Не удалось получить курс USD/RUB",
             details={"reason": last_error} if last_error else None,
         )
-    finally:
-        await redis_client.close()

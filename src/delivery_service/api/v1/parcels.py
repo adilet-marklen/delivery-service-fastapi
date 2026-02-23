@@ -43,12 +43,16 @@ def _to_schema(parcel: Parcel) -> ParcelOut:
     )
 
 
-@router.post("/", response_model=SuccessResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/",
+    response_model=SuccessResponse[ParcelCreatedResponse],
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_parcel(
     payload: ParcelCreate,
     db: AsyncSession = Depends(get_db),
     user_id: UUID = Depends(get_user_id),
-) -> SuccessResponse:
+) -> SuccessResponse[ParcelCreatedResponse]:
     parcel_type_service = ParcelTypeService(db)
     type_exists = await parcel_type_service.exists(payload.type_id)
     if not type_exists:
@@ -79,7 +83,7 @@ async def create_parcel(
     )
 
 
-@router.get("/", response_model=SuccessResponse)
+@router.get("/", response_model=SuccessResponse[ParcelListResponse])
 async def list_parcels(
     page: int = Query(default=1, ge=1),
     size: int = Query(default=20, ge=1, le=100),
@@ -87,7 +91,7 @@ async def list_parcels(
     has_delivery_cost: bool | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
     user_id: UUID = Depends(get_user_id),
-) -> SuccessResponse:
+) -> SuccessResponse[ParcelListResponse]:
     service = ParcelService(db)
     filters = ParcelFilters(parcel_type_id=type_id, has_delivery_cost=has_delivery_cost)
     items, total = await service.list_for_user(
@@ -107,12 +111,12 @@ async def list_parcels(
     )
 
 
-@router.get("/{parcel_id}", response_model=SuccessResponse)
+@router.get("/{parcel_id}", response_model=SuccessResponse[ParcelOut])
 async def get_parcel(
     parcel_id: UUID,
     db: AsyncSession = Depends(get_db),
     user_id: UUID = Depends(get_user_id),
-) -> SuccessResponse:
+) -> SuccessResponse[ParcelOut]:
     service = ParcelService(db)
     parcel = await service.get_by_id_for_user(parcel_id=parcel_id, user_id=user_id)
     if parcel is None:

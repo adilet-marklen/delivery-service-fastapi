@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel
 
+T = TypeVar("T")
 
-class SuccessResponse(BaseModel):
-    data: Any
+
+class SuccessResponse(BaseModel, Generic[T]):
+    data: T
     meta: dict[str, Any] | None = None
 
 
@@ -20,7 +22,7 @@ class ErrorResponse(BaseModel):
     error: ErrorBody
 
 
-def ok(data: Any, meta: dict[str, Any] | None = None) -> SuccessResponse:
+def ok(data: T, meta: dict[str, Any] | None = None) -> SuccessResponse[T]:
     return SuccessResponse(data=data, meta=meta)
 
 

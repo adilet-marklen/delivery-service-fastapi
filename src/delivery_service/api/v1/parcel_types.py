@@ -9,8 +9,10 @@ from delivery_service.services.parcel_type_service import ParcelTypeService
 router = APIRouter()
 
 
-@router.get("/", response_model=SuccessResponse)
-async def list_parcel_types(db: AsyncSession = Depends(get_db)) -> SuccessResponse:
+@router.get("/", response_model=SuccessResponse[list[ParcelTypeOut]])
+async def list_parcel_types(
+    db: AsyncSession = Depends(get_db),
+) -> SuccessResponse[list[ParcelTypeOut]]:
     service = ParcelTypeService(db)
     parcel_types = await service.list_types()
     result = [ParcelTypeOut(id=item.id, name=item.name) for item in parcel_types]
