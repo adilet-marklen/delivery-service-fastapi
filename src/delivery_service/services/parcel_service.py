@@ -2,7 +2,7 @@ from uuid import UUID
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload
 
 from delivery_service.db.models.parcel import Parcel
 from delivery_service.schemas.common import ParcelFilters
@@ -38,7 +38,7 @@ class ParcelService:
     async def get_by_id_for_user(self, *, parcel_id: UUID, user_id: UUID) -> Parcel | None:
         query = (
             select(Parcel)
-            .options(selectinload(Parcel.type))
+            .options(joinedload(Parcel.type))
             .where(Parcel.id == parcel_id, Parcel.user_id == user_id)
         )
         result = await self.session.execute(query)
@@ -60,7 +60,7 @@ class ParcelService:
 
         query = (
             select(Parcel)
-            .options(selectinload(Parcel.type))
+            .options(joinedload(Parcel.type))
             .where(*conditions)
             .order_by(Parcel.created_at.desc())
             .offset((page - 1) * size)

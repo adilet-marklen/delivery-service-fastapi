@@ -15,6 +15,11 @@ class ParcelCreate(BaseModel):
 
 class ParcelCreatedResponse(BaseModel):
     id: str
+    title: str
+    weight_kg: float
+    type_id: int
+    declared_cost_usd: Decimal
+    delivery_cost: str
 
 
 class ParcelTypeOut(BaseModel):

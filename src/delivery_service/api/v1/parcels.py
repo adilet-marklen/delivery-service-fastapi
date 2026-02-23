@@ -14,6 +14,7 @@ from delivery_service.schemas.parcels import (
     ParcelOut,
 )
 from delivery_service.services.parcel_service import ParcelService
+from delivery_service.services.parcel_type_service import ParcelTypeService
 
 router = APIRouter()
 
@@ -46,28 +47,47 @@ async def create_parcel(
     db: AsyncSession = Depends(get_db),
     user_id: UUID = Depends(get_user_id),
 ) -> SuccessResponse:
-    service = ParcelService(db)
-    parcel = await service.create(
+    parcel_type_service = ParcelTypeService(db)
+    type_exists = await parcel_type_service.exists(payload.type_id)
+    if not type_exists:
+        raise AppError(
+            status_code=status.HTTP_404_NOT_FOUND,
+            code="parcel_type_not_found",
+            message="Тип посылки не найден",
+            details={"type_id": payload.type_id},
+        )
+
+    parcel_service = ParcelService(db)
+    parcel = await parcel_service.create(
         user_id=user_id,
         title=payload.title,
         weight_kg=payload.weight_kg,
         type_id=payload.type_id,
         declared_cost_usd=float(payload.declared_cost_usd),
     )
-    return ok(ParcelCreatedResponse(id=str(parcel.id)))
+    return ok(
+        ParcelCreatedResponse(
+            id=str(parcel.id),
+            title=parcel.title,
+            weight_kg=float(parcel.weight_kg),
+            type_id=parcel.type_id,
+            declared_cost_usd=parcel.declared_cost_usd,
+            delivery_cost="Не рассчитано",
+        )
+    )
 
 
 @router.get("/", response_model=SuccessResponse)
 async def list_parcels(
     page: int = Query(default=1, ge=1),
     size: int = Query(default=20, ge=1, le=100),
-    parcel_type_id: int | None = Query(default=None),
+    type_id: int | None = Query(default=None),
     has_delivery_cost: bool | None = Query(default=None),
     db: AsyncSession = Depends(get_db),
     user_id: UUID = Depends(get_user_id),
 ) -> SuccessResponse:
     service = ParcelService(db)
-    filters = ParcelFilters(parcel_type_id=parcel_type_id, has_delivery_cost=has_delivery_cost)
+    filters = ParcelFilters(parcel_type_id=type_id, has_delivery_cost=has_delivery_cost)
     items, total = await service.list_for_user(
         user_id=user_id,
         page=page,

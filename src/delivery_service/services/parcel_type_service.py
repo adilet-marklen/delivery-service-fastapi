@@ -11,6 +11,11 @@ class ParcelTypeService:
         self.session = session
 
     async def list_types(self) -> list[ParcelType]:
-        query = select(ParcelType).order_by(ParcelType.id)
+        query = select(ParcelType).order_by(ParcelType.name.asc())
         result = await self.session.execute(query)
         return list(result.scalars().all())
+
+    async def exists(self, type_id: int) -> bool:
+        query = select(ParcelType.id).where(ParcelType.id == type_id)
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none() is not None
