@@ -1,0 +1,75 @@
+from __future__ import annotations
+
+import asyncio
+import logging
+from decimal import ROUND_HALF_UP, Decimal
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.pool import NullPool
+
+from delivery_service.cache.rates import get_usd_rub_rate
+from delivery_service.core.config import settings
+from delivery_service.db.models.parcel import Parcel
+from delivery_service.tasks.celery_app import celery_app
+
+logger = logging.getLogger(__name__)
+
+WEIGHT_COEFF = Decimal("0.5")
+DECLARED_COST_COEFF = Decimal("0.01")
+MONEY_QUANT = Decimal("0.01")
+
+
+def _calculate_cost_rub(
+    *,
+    weight_kg: Decimal,
+    declared_cost_usd: Decimal,
+    usd_rub: Decimal,
+) -> Decimal:
+    base = weight_kg * WEIGHT_COEFF + declared_cost_usd * DECLARED_COST_COEFF
+    return (base * usd_rub).quantize(MONEY_QUANT, rounding=ROUND_HALF_UP)
+
+
+async def _process_unprocessed_parcels(batch_size: int) -> int:
+    processed = 0
+    usd_rub_rate = await get_usd_rub_rate()
+    engine = create_async_engine(settings.db_dsn, poolclass=NullPool, future=True)
+    session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+    try:
+        async with session_factory() as session:
+            while True:
+                async with session.begin():
+                    query = (
+                        select(Parcel)
+                        .where(Parcel.delivery_cost_rub.is_(None))
+                        .order_by(Parcel.created_at.asc())
+                        .limit(batch_size)
+                        .with_for_update(skip_locked=True)
+                    )
+                    parcels = list((await session.execute(query)).scalars().all())
+
+                    if not parcels:
+                        break
+
+                    for parcel in parcels:
+                        parcel.delivery_cost_rub = _calculate_cost_rub(
+                            weight_kg=Decimal(str(parcel.weight_kg)),
+                            declared_cost_usd=Decimal(str(parcel.declared_cost_usd)),
+                            usd_rub=usd_rub_rate,
+                        )
+
+                    processed += len(parcels)
+    finally:
+        await engine.dispose()
+
+    return processed
+
+
+@celery_app.task(name="calculate_delivery_costs")
+def calculate_delivery_costs(batch_size: int = 500) -> int:
+    if batch_size < 1 or batch_size > 5000:
+        raise ValueError("batch_size must be between 1 and 5000")
+    processed = asyncio.run(_process_unprocessed_parcels(batch_size=batch_size))
+    logger.info("calculate_delivery_costs finished: processed=%s", processed)
+    return processed

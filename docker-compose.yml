@@ -1,0 +1,116 @@
+services:
+  app:
+    build: .
+    container_name: delivery_service_app
+    env_file:
+      - .env.example
+    environment:
+      DELIVERY_DB_DSN: ${DELIVERY_DB_DSN:-postgresql+asyncpg://delivery_user:delivery_password@postgres:5432/delivery_service}
+      DELIVERY_REDIS_DSN: ${DELIVERY_REDIS_DSN:-redis://redis:6379/0}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src
+    command: >
+      uvicorn delivery_service.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  postgres:
+    image: postgres:17
+    container_name: delivery_service_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-delivery_service}
+      POSTGRES_USER: ${POSTGRES_USER:-delivery_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-delivery_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-delivery_user} -d ${POSTGRES_DB:-delivery_service}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7
+    container_name: delivery_service_redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  celery-worker:
+    build: .
+    container_name: delivery_service_worker
+    env_file:
+      - .env.example
+    environment:
+      DELIVERY_DB_DSN: ${DELIVERY_DB_DSN:-postgresql+asyncpg://delivery_user:delivery_password@postgres:5432/delivery_service}
+      DELIVERY_REDIS_DSN: ${DELIVERY_REDIS_DSN:-redis://redis:6379/0}
+    depends_on:
+      app:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    command: celery -A delivery_service.tasks.celery_app.celery_app worker -l info --pool=solo
+    restart: unless-stopped
+
+  celery-beat:
+    build: .
+    container_name: delivery_service_beat
+    env_file:
+      - .env.example
+    environment:
+      DELIVERY_DB_DSN: ${DELIVERY_DB_DSN:-postgresql+asyncpg://delivery_user:delivery_password@postgres:5432/delivery_service}
+      DELIVERY_REDIS_DSN: ${DELIVERY_REDIS_DSN:-redis://redis:6379/0}
+    depends_on:
+      app:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    command: celery -A delivery_service.tasks.celery_app.celery_app beat -l info
+    restart: unless-stopped
+
+  migrate:
+    build: .
+    container_name: delivery_service_migrate
+    env_file:
+      - .env.example
+    environment:
+      DELIVERY_DB_DSN: ${DELIVERY_DB_DSN:-postgresql+asyncpg://delivery_user:delivery_password@postgres:5432/delivery_service}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: poetry run alembic upgrade head
+
+volumes:
+  postgres_data:
