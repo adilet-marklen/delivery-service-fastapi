@@ -1,12 +1,14 @@
-from collections.abc import AsyncGenerator
-from uuid import UUID, uuid4
+from __future__ import annotations
 
-from fastapi import Header, Response
+from collections.abc import AsyncGenerator
+from typing import cast
+from uuid import UUID
+
+from fastapi import Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from delivery_service.api.errors import AppError
 from delivery_service.db.session import get_session
-
-SESSION_HEADER = "X-Session-Id"
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -15,13 +17,14 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-def get_session_id(
-    response: Response, x_session_id: str | None = Header(default=None, alias=SESSION_HEADER)
-) -> UUID:
-    """Возвращает id сессии из заголовка или генерирует новый."""
-    if x_session_id:
-        return UUID(x_session_id)
+def get_user_id(request: Request) -> UUID:
+    user_id_any = getattr(request.state, "user_id", None)
 
-    new_session_id = uuid4()
-    response.headers[SESSION_HEADER] = str(new_session_id)
-    return new_session_id
+    if not user_id_any:
+        raise AppError(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            code="session_not_initialized",
+            message="Идентификатор сессии не инициализирован",
+        )
+
+    return cast(UUID, user_id_any)

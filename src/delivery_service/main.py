@@ -6,20 +6,21 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from delivery_service.api.errors import AppError
+from delivery_service.api.responses import SuccessResponse, error, ok
 from delivery_service.api.v1.router import api_router
 from delivery_service.core.config import settings
-from delivery_service.core.exceptions import DeliveryServiceError
 from delivery_service.core.logging import setup_logging
-from delivery_service.core.responses import ResponseEnvelope, ok
 from delivery_service.db.session import get_session
+from delivery_service.middlewares.session import register_session_middleware
 
 
 def create_app() -> FastAPI:
-    """Создаёт и настраивает FastAPI-приложение."""
     setup_logging(settings.log_level)
     logger = logging.getLogger(__name__)
-    logger.info("Loaded settings: %s", settings.safe_log_fields)
+    logger.info("Загружены настройки приложения: %s", settings.safe_log_fields)
     app = FastAPI(title=settings.app_name)
+    register_session_middleware(app)
 
     @app.middleware("http")
     async def request_id_middleware(request: Request, call_next):
@@ -29,29 +30,33 @@ def create_app() -> FastAPI:
         response.headers["X-Request-Id"] = request_id
         return response
 
-    @app.exception_handler(DeliveryServiceError)
-    async def domain_error_handler(request: Request, exc: DeliveryServiceError) -> JSONResponse:
+    @app.exception_handler(AppError)
+    async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
         return JSONResponse(
-            status_code=400,
-            content=ResponseEnvelope(detail=str(exc)).model_dump(),
+            status_code=exc.status_code,
+            content=error(code=exc.code, message=exc.message, details=exc.details).model_dump(
+                exclude_none=True
+            ),
             headers={"X-Request-Id": getattr(request.state, "request_id", "")},
         )
 
     @app.exception_handler(Exception)
     async def unexpected_error_handler(request: Request, exc: Exception) -> JSONResponse:
-        logger.exception("Unhandled error: %s", exc)
+        logger.exception("Необработанная ошибка: %s", exc)
         return JSONResponse(
             status_code=500,
-            content=ResponseEnvelope(detail="Internal server error").model_dump(),
+            content=error(code="internal_error", message="Внутренняя ошибка сервера").model_dump(
+                exclude_none=True
+            ),
             headers={"X-Request-Id": getattr(request.state, "request_id", "")},
         )
 
-    @app.get("/health", response_model=ResponseEnvelope, tags=["health"])
-    async def health() -> ResponseEnvelope:
+    @app.get("/health", response_model=SuccessResponse, tags=["health"])
+    async def health() -> SuccessResponse:
         return ok({"status": "ok"})
 
-    @app.get("/db-ping", response_model=ResponseEnvelope, tags=["health"])
-    async def db_ping(session: AsyncSession = Depends(get_session)) -> ResponseEnvelope:
+    @app.get("/db-ping", response_model=SuccessResponse, tags=["health"])
+    async def db_ping(session: AsyncSession = Depends(get_session)) -> SuccessResponse:
         result = await session.execute(text("SELECT 1"))
         return ok({"db": "ok", "result": result.scalar_one()})
 

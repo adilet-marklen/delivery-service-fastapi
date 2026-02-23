@@ -35,19 +35,19 @@ class ParcelService:
         await self.session.refresh(parcel)
         return parcel
 
-    async def get_by_id_for_session(self, *, parcel_id: UUID, session_id: UUID) -> Parcel | None:
+    async def get_by_id_for_user(self, *, parcel_id: UUID, user_id: UUID) -> Parcel | None:
         query = (
             select(Parcel)
             .options(selectinload(Parcel.type))
-            .where(Parcel.id == parcel_id, Parcel.user_id == session_id)
+            .where(Parcel.id == parcel_id, Parcel.user_id == user_id)
         )
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
 
-    async def list_for_session(
-        self, *, session_id: UUID, page: int, size: int, filters: ParcelFilters
+    async def list_for_user(
+        self, *, user_id: UUID, page: int, size: int, filters: ParcelFilters
     ) -> tuple[list[Parcel], int]:
-        conditions = [Parcel.user_id == session_id]
+        conditions = [Parcel.user_id == user_id]
         if filters.parcel_type_id is not None:
             conditions.append(Parcel.type_id == filters.parcel_type_id)
         if filters.has_delivery_cost is True:
