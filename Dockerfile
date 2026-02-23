@@ -9,6 +9,8 @@ RUN pip install --no-cache-dir poetry
 
 COPY pyproject.toml README.md ./
 COPY src ./src
+COPY alembic.ini ./alembic.ini
+COPY migrations ./migrations
 
 RUN poetry config virtualenvs.create false \
   && poetry install --no-interaction --no-ansi

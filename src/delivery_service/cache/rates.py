@@ -38,6 +38,7 @@ async def get_usd_rub_rate() -> Decimal:
     except (redis.ConnectionError, redis.TimeoutError):
         logger.warning("Redis недоступен при чтении курса", exc_info=True)
 
+    last_error: str | None = None
     try:
         fresh_rate = await cbr_client.fetch_usd_rub_rate()
         try:
@@ -46,7 +47,8 @@ async def get_usd_rub_rate() -> Decimal:
             logger.warning("Redis недоступен при записи курса", exc_info=True)
         logger.info("USD/RUB fetched from CBR: %s", fresh_rate)
         return fresh_rate
-    except (httpx.RequestError, httpx.HTTPStatusError, AppError):
+    except (httpx.RequestError, httpx.HTTPStatusError, AppError) as exc:
+        last_error = str(exc)
         try:
             fallback_raw = await redis_client.get(USD_RUB_CACHE_KEY)
             fallback_rate = _parse_decimal(fallback_raw)
@@ -60,6 +62,7 @@ async def get_usd_rub_rate() -> Decimal:
             status_code=502,
             code="usd_rate_unavailable",
             message="Не удалось получить курс USD/RUB",
+            details={"reason": last_error} if last_error else None,
         )
     finally:
         await redis_client.close()

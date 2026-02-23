@@ -7,8 +7,9 @@ from sqlalchemy import update
 
 from delivery_service.db.models.parcel import Parcel
 
+pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
-@pytest.mark.asyncio
+
 async def test_create_parcel_validation_error(client, parcel_type_ids: dict[str, int]) -> None:
     response = await client.post(
         "/api/v1/parcels/",
@@ -23,7 +24,6 @@ async def test_create_parcel_validation_error(client, parcel_type_ids: dict[str,
     assert response.status_code == 422
 
 
-@pytest.mark.asyncio
 async def test_create_parcel_success(client, parcel_type_ids: dict[str, int]) -> None:
     response = await client.post(
         "/api/v1/parcels/",
@@ -42,7 +42,6 @@ async def test_create_parcel_success(client, parcel_type_ids: dict[str, int]) ->
     assert data["delivery_cost"] == "Не рассчитано"
 
 
-@pytest.mark.asyncio
 async def test_list_parcels_pagination_and_filters(
     client,
     db_session,
@@ -99,7 +98,6 @@ async def test_list_parcels_pagination_and_filters(
     assert response_with_cost.json()["data"]["items"][0]["delivery_cost_rub"] == "777.77"
 
 
-@pytest.mark.asyncio
 async def test_get_parcel_by_id_forbidden_for_other_user(
     app,
     client,

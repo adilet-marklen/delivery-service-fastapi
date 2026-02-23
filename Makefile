@@ -37,7 +37,7 @@ shell:
 	poetry run python
 
 celery-worker:
-	poetry run celery -A delivery_service.tasks.celery_app.celery_app worker -l info
+	poetry run celery -A delivery_service.tasks.celery_app.celery_app worker -l info --pool=solo
 
 celery-beat:
 	poetry run celery -A delivery_service.tasks.celery_app.celery_app beat -l info
@@ -65,7 +65,7 @@ dshell:
 	docker compose exec app poetry run python
 
 dcelery-worker:
-	docker compose exec celery-worker celery -A delivery_service.tasks.celery_app.celery_app worker -l info
+	docker compose exec celery-worker celery -A delivery_service.tasks.celery_app.celery_app worker -l info --pool=solo
 
 dcelery-beat:
 	docker compose exec celery-beat celery -A delivery_service.tasks.celery_app.celery_app beat -l info

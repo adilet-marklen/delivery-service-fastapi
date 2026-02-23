@@ -40,7 +40,7 @@ class Parcel(Base):
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=generate_uuid)
     user_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
-    weight_kg: Mapped[float] = mapped_column(Numeric(10, 3), nullable=False)
+    weight_kg: Mapped[Decimal] = mapped_column(Numeric(10, 3), nullable=False)
     declared_cost_usd: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     type_id: Mapped[int] = mapped_column(
         Integer,

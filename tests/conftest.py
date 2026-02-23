@@ -24,7 +24,7 @@ from delivery_service.main import create_app
 TEST_DB_DSN = os.getenv("TEST_DB_DSN") or os.getenv("DELIVERY_DB_DSN")
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def test_engine() -> AsyncGenerator[AsyncEngine, None]:
     if not TEST_DB_DSN:
         pytest.skip("TEST_DB_DSN/DELIVERY_DB_DSN не задан. Пропускаем интеграционные тесты API.")
@@ -42,14 +42,14 @@ async def test_engine() -> AsyncGenerator[AsyncEngine, None]:
     await engine.dispose()
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(scope="session", loop_scope="session")
 async def session_factory(
     test_engine: AsyncEngine,
 ) -> async_sessionmaker[AsyncSession]:
     return async_sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(loop_scope="session")
 async def db_seeded(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> AsyncGenerator[None, None]:
@@ -67,7 +67,7 @@ async def db_seeded(
     yield
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(loop_scope="session")
 async def parcel_type_ids(
     db_seeded,
     session_factory: async_sessionmaker[AsyncSession],
@@ -78,7 +78,7 @@ async def parcel_type_ids(
     return {item.name: item.id for item in types}
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(loop_scope="session")
 async def app(session_factory: async_sessionmaker[AsyncSession]):
     app = create_app()
 
@@ -91,14 +91,14 @@ async def app(session_factory: async_sessionmaker[AsyncSession]):
     app.dependency_overrides.clear()
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(loop_scope="session")
 async def client(app) -> AsyncGenerator[AsyncClient, None]:
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as async_client:
         yield async_client
 
 
-@pytest_asyncio.fixture
+@pytest_asyncio.fixture(loop_scope="session")
 async def db_session(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> AsyncGenerator[AsyncSession, None]:

@@ -41,6 +41,16 @@ def create_app() -> FastAPI:
                 latency_ms,
             )
             return response
+        except Exception:
+            latency_ms = (perf_counter() - started_at) * 1000
+            logger.exception(
+                "%s %s -> %s %.2fms",
+                request.method,
+                request.url.path,
+                500,
+                latency_ms,
+            )
+            raise
         finally:
             clear_request_id()
 

@@ -12,6 +12,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     ports:
       - "8000:8000"
     volumes:
@@ -70,7 +72,9 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
-    command: celery -A delivery_service.tasks.celery_app.celery_app worker -l info
+      migrate:
+        condition: service_completed_successfully
+    command: celery -A delivery_service.tasks.celery_app.celery_app worker -l info --pool=solo
 
   celery-beat:
     build: .
@@ -87,7 +91,21 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     command: celery -A delivery_service.tasks.celery_app.celery_app beat -l info
+
+  migrate:
+    build: .
+    container_name: delivery_service_migrate
+    env_file:
+      - .env.example
+    environment:
+      DELIVERY_DB_DSN: ${DELIVERY_DB_DSN:-postgresql+asyncpg://delivery_user:delivery_password@postgres:5432/delivery_service}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: poetry run alembic upgrade head
 
 volumes:
   postgres_data:

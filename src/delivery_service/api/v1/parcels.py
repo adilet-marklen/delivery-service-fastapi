@@ -1,3 +1,4 @@
+from decimal import Decimal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
@@ -6,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from delivery_service.api.deps import get_db, get_user_id
 from delivery_service.api.errors import AppError
 from delivery_service.api.responses import SuccessResponse, ok
+from delivery_service.db.models.parcel import Parcel
 from delivery_service.schemas.common import ParcelFilters
 from delivery_service.schemas.parcels import (
     ParcelCreate,
@@ -19,18 +21,18 @@ from delivery_service.services.parcel_type_service import ParcelTypeService
 router = APIRouter()
 
 
-def _format_delivery_cost(cost: float | None) -> str:
+def _format_delivery_cost(cost: Decimal | None) -> str:
     # В ТЗ явно просят строку "Не рассчитано", поэтому держим отдельное текстовое поле.
     if cost is None:
         return "Не рассчитано"
-    return f"{float(cost):.2f}"
+    return f"{cost:.2f}"
 
 
-def _to_schema(parcel) -> ParcelOut:
+def _to_schema(parcel: Parcel) -> ParcelOut:
     return ParcelOut(
         id=str(parcel.id),
         title=parcel.title,
-        weight_kg=float(parcel.weight_kg),
+        weight_kg=parcel.weight_kg,
         declared_cost_usd=parcel.declared_cost_usd,
         type_id=parcel.type_id,
         type_name=parcel.type.name,
@@ -63,13 +65,13 @@ async def create_parcel(
         title=payload.title,
         weight_kg=payload.weight_kg,
         type_id=payload.type_id,
-        declared_cost_usd=float(payload.declared_cost_usd),
+        declared_cost_usd=payload.declared_cost_usd,
     )
     return ok(
         ParcelCreatedResponse(
             id=str(parcel.id),
             title=parcel.title,
-            weight_kg=float(parcel.weight_kg),
+            weight_kg=parcel.weight_kg,
             type_id=parcel.type_id,
             declared_cost_usd=parcel.declared_cost_usd,
             delivery_cost="Не рассчитано",

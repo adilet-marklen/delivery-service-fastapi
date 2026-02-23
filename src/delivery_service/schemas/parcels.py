@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 class ParcelCreate(BaseModel):
     title: str = Field(min_length=1, max_length=255)
-    weight_kg: float = Field(gt=0)
+    weight_kg: Decimal = Field(gt=0)
     type_id: int = Field(gt=0)
     declared_cost_usd: Decimal = Field(ge=0)
 
@@ -16,7 +16,7 @@ class ParcelCreate(BaseModel):
 class ParcelCreatedResponse(BaseModel):
     id: str
     title: str
-    weight_kg: float
+    weight_kg: Decimal
     type_id: int
     declared_cost_usd: Decimal
     delivery_cost: str
@@ -30,7 +30,7 @@ class ParcelTypeOut(BaseModel):
 class ParcelOut(BaseModel):
     id: str
     title: str
-    weight_kg: float
+    weight_kg: Decimal
     type_id: int
     type_name: str
     declared_cost_usd: Decimal

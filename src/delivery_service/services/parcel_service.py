@@ -1,9 +1,12 @@
+from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
+from delivery_service.api.errors import AppError
 from delivery_service.db.models.parcel import Parcel
 from delivery_service.schemas.common import ParcelFilters
 
@@ -19,9 +22,9 @@ class ParcelService:
         *,
         user_id: UUID,
         title: str,
-        weight_kg: float,
+        weight_kg: Decimal,
         type_id: int,
-        declared_cost_usd: float,
+        declared_cost_usd: Decimal,
     ) -> Parcel:
         parcel = Parcel(
             user_id=user_id,
@@ -31,7 +34,22 @@ class ParcelService:
             declared_cost_usd=declared_cost_usd,
         )
         self.session.add(parcel)
-        await self.session.commit()
+        try:
+            await self.session.commit()
+        except IntegrityError as exc:
+            await self.session.rollback()
+            # FK type_id -> parcel_types.id; даем понятный ответ вместо 500.
+            if "parcel_types" in str(exc).lower() or "type_id" in str(exc).lower():
+                raise AppError(
+                    status_code=404,
+                    code="parcel_type_not_found",
+                    message="Тип посылки не найден",
+                ) from exc
+            raise AppError(
+                status_code=400,
+                code="parcel_create_failed",
+                message="Не удалось создать посылку",
+            ) from exc
         await self.session.refresh(parcel)
         return parcel
 

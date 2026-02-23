@@ -1,7 +1,8 @@
 import pytest
 
+pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
-@pytest.mark.asyncio
+
 async def test_get_parcel_types_returns_seeded_types(client, db_seeded) -> None:
     response = await client.get("/api/v1/parcel-types/")
 
